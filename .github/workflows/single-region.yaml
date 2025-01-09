@@ -33,16 +33,14 @@ jobs:
     needs: determine-region
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Specific Workflow
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const workflow = core.getInput('workflow');
-            await github.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: workflow,
-              ref: context.ref,
-            });
+      - name: Trigger Region Workflow
         env:
-          workflow: ${{ needs.determine-region.outputs.target-workflow }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_WORKFLOW: ${{ needs.determine-region.outputs.target-workflow }}
+        run: |
+          # Trigger the target workflow using GitHub API
+          curl -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/$TARGET_WORKFLOW/dispatches \
+            -d '{"ref": "dev"}'
