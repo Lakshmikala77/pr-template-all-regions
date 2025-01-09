@@ -1,0 +1,48 @@
+name: Trigger Region Deployment
+
+on:
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  determine-region:
+    runs-on: ubuntu-latest
+    outputs:
+      target-workflow: ${{ steps.set-region.outputs.target-workflow }}
+    steps:
+      - name: Extract PR Title
+        id: set-region
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "PR Title: $PR_TITLE"
+
+          # Determine the region based on the PR title
+          if [[ "$PR_TITLE" == *"[ap]"* ]]; then
+            echo "::set-output name=target-workflow::dev-ap.yml"
+          elif [[ "$PR_TITLE" == *"[us]"* ]]; then
+            echo "::set-output name=target-workflow::dev-us.yml"
+          elif [[ "$PR_TITLE" == *"[eu]"* ]]; then
+            echo "::set-output name=target-workflow::dev-eu.yml"
+          else
+            echo "Error: Invalid or missing region in PR title."
+            exit 1
+          fi
+
+  trigger-region:
+    needs: determine-region
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Specific Workflow
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const workflow = core.getInput('workflow');
+            await github.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: workflow,
+              ref: context.ref,
+            });
+        env:
+          workflow: ${{ needs.determine-region.outputs.target-workflow }}
