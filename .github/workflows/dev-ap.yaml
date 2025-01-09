@@ -386,3 +386,34 @@ jobs:
             echo "PR title does not match theAP region deployment trigger."
             exit 0
           fi
+      - name: Check if Template is Skipped
+        id: check-skip
+        run: |
+          PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
+          echo "PR_BODY=$PR_BODY"
+
+          SKIP_SELECTED=$(echo "$PR_BODY" | grep -oP '(?<=- Skip: `)[^`]+')
+          echo "SKIP_SELECTED=$SKIP_SELECTED" >> $GITHUB_ENV
+
+          if [ "$SKIP_SELECTED" == "Y" ]; then
+            echo "Skipping further steps as 'Skip' is selected."
+            exit 0
+          fi
+      - name: Parse PR Body
+        if: ${{ env.SKIP_SELECTED != 'Y' }}
+        id: parse_pr
+        run: |
+          PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
+          echo "PR_BODY=$PR_BODY"
+
+          DEV_IMAGE_AP=$(echo "$PR_BODY" | grep -A 3 "Dev Environment" | grep "AP Region:" | awk -F'`' '{print $2}' | tr -d '[:space:]')
+          echo "DEV_IMAGE_AP=$DEV_IMAGE_AP" >> $GITHUB_ENV
+
+      - name: Validate and Display Selected Environments
+        if: ${{ env.SKIP_SELECTED != 'Y' }}
+        run: |
+          if [ -z "$DEV_IMAGE_AP" ]; then
+            echo "Error: Missing image tag for AP Region in Dev Environment."
+            exit 1
+          fi
+          echo "Dev Environment - AP Region: $DEV_IMAGE_AP"
