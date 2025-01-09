@@ -7,6 +7,7 @@
 
 # Image Tags for Selected Environment
 
+
 ### Dev Environment
 - **AP Region:** ``
 - **EU Region:** ``
