@@ -160,17 +160,99 @@
 #           #   fi
 #           #   echo "Prod: AP=$PROD_IMAGE_AP, EU=$PROD_IMAGE_EU, US=$PROD_IMAGE_US"
 #           # fi
-name: Build and Push Docker Image to Docker Hub-dev-eu
-on:
-  workflow_dispatch:
+# name: Build and Push Docker Image to Docker Hub-dev-eu
 # on:
-#   pull_request:
+#   workflow_dispatch:
+# # on:
+# #   pull_request:
+#     branches:
+#       - dev
+
+# jobs:
+#   build-and-push:
+#     name: Build and Push
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       id-token: write
+
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v2
+
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
+
+#       - name: Build Docker image
+#         run: |
+#           docker build -t lakshmi979/my-app:$GITHUB_SHA .
+
+#       - name: List Docker images (for debugging)
+#         run: |
+#           docker images
+
+#       - name: Push Docker image to Docker Hub
+#         run: |
+#           docker push lakshmi979/my-app:$GITHUB_SHA
+
+#   extract-pr-info:
+#     name: Extract and Validate PR Information
+#     runs-on: ubuntu-latest
+#     needs: build-and-push
+
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v2
+
+#       - name: Check if Template is Skipped
+#         id: check-skip
+#         run: |
+#           PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
+#           echo "PR_BODY=$PR_BODY"
+
+#           SKIP_SELECTED=$(echo "$PR_BODY" | grep -oP '(?<=- Skip: `)[^`]+')
+#           echo "SKIP_SELECTED=$SKIP_SELECTED" >> $GITHUB_ENV
+
+#           if [ "$SKIP_SELECTED" == "Y" ]; then
+#             echo "Skipping further steps as 'Skip' is selected."
+#             exit 0
+#           fi
+
+#       - name: Parse PR Body
+#         if: ${{ env.SKIP_SELECTED != 'Y' }}
+#         id: parse_pr
+#         run: |
+#           PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
+#           echo "PR_BODY=$PR_BODY"
+
+#           DEV_IMAGE_EU=$(echo "$PR_BODY" | grep -A 3 "Dev Environment" | grep "EU Region:" | awk -F'`' '{print $2}' | tr -d '[:space:]')
+#           echo "DEV_IMAGE_EU=$DEV_IMAGE_EU" >> $GITHUB_ENV
+
+#       - name: Validate and Display Selected Environments
+#         if: ${{ env.SKIP_SELECTED != 'Y' }}
+#         run: |
+#           if [ -z "$DEV_IMAGE_EU" ]; then
+#             echo "Error: Missing image tag for EU Region in Dev Environment."
+#             exit 1
+#           fi
+#           echo "Dev Environment - EU Region: $DEV_IMAGE_EU"
+name: Build and Deploy to Docker Hub - Dev EU
+
+on:
+  pull_request:
     branches:
       - dev
+    types:
+      - opened
+      - edited
+      - synchronize
 
 jobs:
-  build-and-push:
-    name: Build and Push
+  build-and-deploy:
+    name: Build and Deploy Docker Image to Docker Hub - EU Region
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -186,56 +268,23 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Parse PR Title and Deploy (EU Region)
         run: |
-          docker build -t lakshmi979/my-app:$GITHUB_SHA .
+          PR_TITLE=$(jq -r '.pull_request.title' < "$GITHUB_EVENT_PATH")
+          echo "PR Title: $PR_TITLE"
 
-      - name: List Docker images (for debugging)
-        run: |
-          docker images
+          # Check if the PR title contains the specific string for the EU region
+          if [[ "$PR_TITLE" == *"[eu]: deploy"* ]]; then
+            echo "Deploying for EU region..."
 
-      - name: Push Docker image to Docker Hub
-        run: |
-          docker push lakshmi979/my-app:$GITHUB_SHA
+            # Build the Docker image
+            docker build -t lakshmi979/my-app:$GITHUB_SHA .
 
-  extract-pr-info:
-    name: Extract and Validate PR Information
-    runs-on: ubuntu-latest
-    needs: build-and-push
+            # Push the Docker image to Docker Hub
+            docker push lakshmi979/my-app:$GITHUB_SHA
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Check if Template is Skipped
-        id: check-skip
-        run: |
-          PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
-          echo "PR_BODY=$PR_BODY"
-
-          SKIP_SELECTED=$(echo "$PR_BODY" | grep -oP '(?<=- Skip: `)[^`]+')
-          echo "SKIP_SELECTED=$SKIP_SELECTED" >> $GITHUB_ENV
-
-          if [ "$SKIP_SELECTED" == "Y" ]; then
-            echo "Skipping further steps as 'Skip' is selected."
+            echo "Deployment for EU region is successful."
+          else
+            echo "PR title does not match the EU region deployment trigger."
             exit 0
           fi
-
-      - name: Parse PR Body
-        if: ${{ env.SKIP_SELECTED != 'Y' }}
-        id: parse_pr
-        run: |
-          PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
-          echo "PR_BODY=$PR_BODY"
-
-          DEV_IMAGE_EU=$(echo "$PR_BODY" | grep -A 3 "Dev Environment" | grep "EU Region:" | awk -F'`' '{print $2}' | tr -d '[:space:]')
-          echo "DEV_IMAGE_EU=$DEV_IMAGE_EU" >> $GITHUB_ENV
-
-      - name: Validate and Display Selected Environments
-        if: ${{ env.SKIP_SELECTED != 'Y' }}
-        run: |
-          if [ -z "$DEV_IMAGE_EU" ]; then
-            echo "Error: Missing image tag for EU Region in Dev Environment."
-            exit 1
-          fi
-          echo "Dev Environment - EU Region: $DEV_IMAGE_EU"
