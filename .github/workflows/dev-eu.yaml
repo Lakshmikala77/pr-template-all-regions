@@ -44,6 +44,22 @@ jobs:
     needs: build-and-push
 
     steps:
+
+        - name: Checking template is skipped
+          id: check-skip
+          run: |
+            PR_BODY=$(jq -r '.pull_request.body' < "$GITHUB_EVENT_PATH")
+            echo "PR_BODY=$PR_BODY"
+            
+
+          # Initialize selected environment variables
+          SKIP_SELECTED=$(echo "$PR_BODY" | grep -oP '(?<=- Skip: `)[^`]+')
+          echo "SKIP_SELECTED=$SKIP_SELECTED" >> $GITHUB_ENV
+
+          if [ "$SKIP_SELECTED" == "Y" ]; then
+            echo "Skipping the template"
+            exit 1
+          fi  
       # - name: Check PR title for skip flag
       #   id: check-skip
       #   run: |
@@ -60,6 +76,7 @@ jobs:
       #       exit 0
       #     fi
       - name: Parse and Validate PR Body
+        needs: check-skip
         id: parse_pr
         run: |
           # read the pull request body
