@@ -1,0 +1,8 @@
+
+    
+        if: ${{startsWith(github.event.pull_request.title, '[us/') && github.event.pull_request.base.ref == 'production'}}
+1. all regions deployment working
+2. skipping template also working
+3. single region need to try?
+pr-template-all-regions: this repo has
+skipping template and all regions deployment.
