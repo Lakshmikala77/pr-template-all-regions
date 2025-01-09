@@ -237,3 +237,4 @@ jobs:
             exit 1
           fi
           echo "Dev Environment - AP Region: $DEV_IMAGE_AP"
+
