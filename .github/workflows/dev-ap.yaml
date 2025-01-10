@@ -381,7 +381,7 @@ jobs:
             # Push the Docker image to Docker Hub
             docker push lakshmi979/my-app:$GITHUB_SHA
 
-     steps:
+    steps:
       - name: Check PR title for skip flag
         id: check-skip
         run: |
